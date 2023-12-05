@@ -1,10 +1,10 @@
 import java.util.List;
+
 public class TM {
     public static void main(String[] args){
         TaskRepository taskRepo = new TaskRepository("taskdata.log");
         CommandInvoker invoker = new CommandInvoker();
         Command command = null;
-
 
         if (args.length > 0) {
             String commandType = args[0].toLowerCase();
@@ -55,15 +55,14 @@ public class TM {
     }
 }
 
-enum TShirtSize {
-    S,
-    M,
-    L,
-    XL
+class InvalidCommandException extends Exception {
+    public InvalidCommandException(String usage){
+        super("Missing Arguments, Usage: " + usage);
+    }
 }
 
 interface Command {
-    void execute();
+    void execute() throws InvalidCommandException;
 }
 
 
@@ -75,55 +74,70 @@ class StartTaskCommand implements Command {
         this.taskRepo = repo;
         this.taskName = name;
     }
-
     @Override
-    public void execute() {
-        taskRepo.startTask(taskName);
+    public void execute() throws InvalidCommandException {
+        if (this.taskName != null) {
+            taskRepo.startTask(taskName);
+        } else {
+            throw new InvalidCommandException("TM.java start <task name>");
+        }
     }
 }
 
 class StopTaskCommand implements Command {
     private final TaskRepository taskRepo;
     private final String taskName;
-
     public StopTaskCommand(TaskRepository repo, String name) {
         this.taskRepo = repo;
         this.taskName = name;
     }
-
     @Override
-    public void execute() {
-        taskRepo.startTask(taskName);
+    public void execute() throws InvalidCommandException {
+        if (this.taskName != null) {
+            taskRepo.stopTask(taskName);
+        } else {
+            throw new InvalidCommandException("TM.java stop <task name>");
+        }
     }
 }
 
 class DescribeTaskCommand implements Command {
     private final TaskRepository taskRepo;
     private final String taskName;
+    private final String description;
+    private final String size;
 
-    public DescribeTaskCommand(TaskRepository repo, String name, String description, String size) {
+    public DescribeTaskCommand(TaskRepository repo, String name,
+                               String description, String size) {
         this.taskRepo = repo;
         this.taskName = name;
+        this.description = description;
+        this.size = size;
     }
 
     @Override
-    public void execute() {
-        taskRepo.startTask(taskName);
+    public void execute() throws InvalidCommandException {
+        if (this.taskName != null && description != null) {
+            taskRepo.describe(this.taskName, this.description, this.size);
+        } else {
+            throw new InvalidCommandException("TM.java describe <task name> " +
+                    "<description> [{S|M|L|XL}]");
+        }
     }
 }
 
 class SummaryCommand implements Command {
     private final TaskRepository taskRepo;
-    private final String taskName;
+    private final String arg;
 
-    public SummaryCommand(TaskRepository repo, String name) {
+    public SummaryCommand(TaskRepository repo, String arg) {
         this.taskRepo = repo;
-        this.taskName = name;
+        this.arg = arg;
     }
 
     @Override
     public void execute() {
-        taskRepo.startTask(taskName);
+        taskRepo.summary(arg);
     }
 }
 
@@ -137,8 +151,13 @@ class SizeCommand implements Command {
     }
 
     @Override
-    public void execute() {
-        taskRepo.startTask(taskName);
+    public void execute() throws InvalidCommandException {
+        if (this.taskName != null) {
+            taskRepo.size(taskName);
+        } else {
+            throw new InvalidCommandException("TM.java size <task  name> " +
+                    "{S|M|L|XL}");
+        }
     }
 }
 
@@ -152,8 +171,12 @@ class DeleteCommand implements Command {
     }
 
     @Override
-    public void execute() {
-        taskRepo.startTask(taskName);
+    public void execute() throws InvalidCommandException {
+        if (this.taskName != null) {
+            taskRepo.delete(taskName);
+        } else {
+            throw new InvalidCommandException("TM.java delete <task name>");
+        }
     }
 }
 
@@ -169,46 +192,67 @@ class RenameCommand implements Command {
     }
 
     @Override
-    public void execute() {
-        taskRepo.startTask(newName);
+    public void execute() throws InvalidCommandException {
+        if (this.oldName != null && this.newName != null) {
+            taskRepo.rename(oldName, newName);
+        } else {
+            throw new InvalidCommandException("TM.java rename <old task " +
+                    "name> <new task name>");
+        }
     }
 }
 
 class CommandInvoker {
     private Command command;
-
     public void setCommand(Command command) {
         this.command = command;
     }
-
     public void invoke() {
         if (command != null) {
-            command.execute();
+            try {
+                command.execute();
+            } catch (InvalidCommandException e) {
+                System.out.println(e.getMessage());
+            }
         }
     }
 }
 
 class TaskRepository {
     private final String logFilePath;
+    private List<Task> tasks;
 
     public TaskRepository(String filePath) {
         this.logFilePath = filePath;
-        // Initialize the log file if necessary
     }
 
     public void startTask(String taskName) {
-        // Logic to start a task, write to log file
     }
 
     public void stopTask(String taskName) {
-        // Logic to stop a task, write to log file
     }
 
-    public void describeTask(String taskName, String description, String size) {
-        // Logic to describe a task, write to log file
+    public void describe(String taskName, String description, String size) {
     }
 
-    // Other methods for rename, delete, summary
+    public void size(String taskName) {
+    }
+
+    public void summary(String arg) {
+    }
+
+    public void delete(String taskName) {
+    }
+
+    public void rename(String oldName, String newName) {
+    }
+}
+
+enum TShirtSize {
+    S,
+    M,
+    L,
+    XL
 }
 
 class Task {
@@ -221,14 +265,11 @@ class Task {
 class TimeEntry {
     private String startTime;
     private String stopTime;
-
     public TimeEntry(String startTime, String stopTime) {
         this.startTime = startTime;
         this.stopTime = stopTime;
     }
-
     public int getDuration() {
-
         return 0;
     }
 }
