@@ -6,6 +6,7 @@ public class TM {
         CommandInvoker invoker = new CommandInvoker();
         Command command = null;
 
+
         if (args.length > 0) {
             String commandType = args[0].toLowerCase();
             switch (commandType) {
