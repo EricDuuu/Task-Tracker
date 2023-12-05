@@ -1,5 +1,4 @@
 import java.util.List;
-
 public class TM {
     public static void main(String[] args){
         TaskRepository taskRepo = new TaskRepository("taskdata.log");
