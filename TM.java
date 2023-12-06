@@ -1,15 +1,14 @@
-import java.util.Arrays;
 import java.util.List;
-import java.util.logging.FileHandler;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
-
+import java.io.*;
+import java.time.Instant;
+import java.util.*;
+import java.util.Stack;
 
 public class TM {
     public static void main(String[] args){
         TaskRepository taskRepo = new TaskRepository("taskdata.log");
         CommandInvoker invoker = new CommandInvoker();
-        Command command = null;
+        Command command;
 
         if (args.length > 0) {
             String commandType = args[0].toLowerCase();
@@ -32,7 +31,7 @@ public class TM {
                     command = new SummaryCommand(taskRepo,
                             argExists(1, args));
                     break;
-                case "size": // modified this case under the assumption that specified size is mandatory
+                case "size":
                     command = new SizeCommand(taskRepo,
                             argExists(1, args),
                             argExists(2, args));
@@ -47,7 +46,7 @@ public class TM {
                             argExists(2, args));
                     break;
                 default:
-                    System.out.println("Unknown command");
+                    System.err.println("Unknown command");
                     return;
             }
 
@@ -60,13 +59,6 @@ public class TM {
         return args.length > argNum ? args[argNum] : null;
     }
 }
-
-class InvalidCommandException extends Exception {
-    public InvalidCommandException(String usage){
-        super("Missing Arguments, Usage: " + usage);
-    }
-}
-
 interface Command {
     void execute() throws InvalidCommandException;
 }
@@ -80,7 +72,6 @@ class StartTaskCommand implements Command {
         this.taskRepo = repo;
         this.taskName = name;
     }
-
     @Override
     public void execute() throws InvalidCommandException {
         if (this.taskName != null) {
@@ -151,7 +142,7 @@ class SummaryCommand implements Command {
 class SizeCommand implements Command {
     private final TaskRepository taskRepo;
     private final String taskName;
-    private String size; //modified here as well to be able to pass in size type
+    private final String size;
 
     public SizeCommand(TaskRepository repo, String name, String size) {
         this.taskRepo = repo;
@@ -161,8 +152,8 @@ class SizeCommand implements Command {
 
     @Override
     public void execute() throws InvalidCommandException {
-        if (this.taskName != null && taskRepo.doesSizeExist(size)) { // if invalid size, prompt default exception
-            taskRepo.size(taskName, size);
+        if (this.taskName != null) {
+            taskRepo.size(taskName,size);
         } else {
             throw new InvalidCommandException("TM.java size <task  name> " +
                     "{S|M|L|XL}");
@@ -228,131 +219,211 @@ class CommandInvoker {
 }
 
 class TaskRepository {
-    private final String logFilePath;
-    private List<Task> tasks;
-    private Logger logger;
+    private final List<Task> tasks;
+    private final Logger logger;
 
     public TaskRepository(String filePath) {
-        this.logFilePath = filePath;
+        LogParser logParser = new LogParser();
+        this.logger = new Logger(filePath);
+        this.tasks = logParser.parseLogFile(filePath);
+    }
 
-         // Initialize logger and set up FileHandler
-        try {
+    private Task getLatestTask(String taskName) {
+        return tasks.stream()
+                .filter(task -> task.getName().equals(taskName))
+                .reduce((first, second) -> second)
+                .orElse(null);
+    }
 
-            logger = Logger.getLogger(TaskRepository.class.getName());
-            FileHandler fileHandler = new FileHandler(logFilePath, true);
-            SimpleFormatter formatter = new SimpleFormatter();
-            fileHandler.setFormatter(formatter);
-            logger.addHandler(fileHandler);
-
-        } catch (Exception e) {
-            e.printStackTrace();
+    // these shouldn't modify task at all
+    public void startTask(String taskName) {
+        Task task = getLatestTask(taskName);
+        if(task.validStart()) {
+            logger.logAction(taskName, "start", "");
         }
     }
 
-    public Task findTaskInList (String taskName) {
-        for (Task task : tasks) {
-            if (task.getName().equals(taskName)) {
-                return task;
+    public void stopTask(String taskName) {
+        Task task = getLatestTask(taskName);
+        if (task.validStop()) {
+            logger.logAction(taskName, "stop", "");
+        }
+    }
+
+    public void describe(String taskName, String description, String size) {
+        Task task = getLatestTask(taskName);
+        if (task != null) {
+            logger.logAction(taskName, "describe",
+                    description + (size != null ? "," + size : ""));
+        }
+    }
+
+    public void size(String taskName, String size) {
+        Task task = getLatestTask(taskName);
+        if (task != null) {
+            logger.logAction(taskName, "size", size);
+        }
+    }
+
+    // iterate through task
+    public void summary(String arg) {
+
+    }
+
+    // Deletes in logger
+    public void delete(String taskName) {
+
+    }
+
+    // rename in logger
+    public void rename(String oldName, String newName) {
+
+    }
+}
+
+class LogParser {
+    // TODO
+    private List<Task> tasks;
+    public List<Task> parseLogFile(String logFilePath) {
+        List<Task> tasks = new ArrayList<>();
+        return tasks;
+    }
+
+    private Task getLatestTask(String taskName) {
+        return tasks.stream()
+                .filter(task -> task.getName().equals(taskName))
+                .reduce((first, second) -> second)
+                .orElse(null);
+    }
+
+    public Task parseLogLine(String line) {
+        String[] parts = line.split(",");
+
+        String timestamp = parts[0];
+        String taskName = parts[1];
+        String command = parts[2];
+
+        String additionalInfo = (parts.length > 3) ? parts[3] : null;
+
+        Task task = getLatestTask(taskName);
+        if (task != null
+                && (command.equals("start") || command.equals("stop"))){
+            task.upsertTimeEntry(timestamp, command);
+            return null;
+        } else if (task != null && command.equals("size"){
+
+        }
+
+        return new Task(taskName, additionalInfo, null);
+    }
+}
+
+class Logger {
+    private final String logFilePath;
+
+    public Logger(String logFilePath) {
+        this.logFilePath = logFilePath;
+    }
+
+
+
+    public void logAction(String taskName, String command,
+                          String additionalInfo) {
+        String logEntry = String.format("%s,%s,%s,%s",
+                Instant.now().toString(), taskName, command, additionalInfo);
+
+        try (FileWriter fw = new FileWriter(logFilePath, true);
+             BufferedWriter writer = new BufferedWriter(fw)) {
+            writer.append(logEntry);
+            writer.newLine();
+        } catch (IOException e) {
+            System.err.println("Error writing to log file: " + e.getMessage());
+        }
+    }
+}
+
+
+class Task {
+    private final String name;
+    private String description;
+    private TShirtSize size;
+
+    private Stack<TimeEntry> timeEntries;
+
+    public Task(String name) {
+        this(name, "", null);
+    }
+    public Task(String name, String description, TShirtSize size) {
+        this.name = name;
+        this.description = description;
+        this.size = size;
+        this.timeEntries = new Stack<>();
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getDescription(){ return description; }
+
+    public TShirtSize getTShirtSize(){ return size; }
+
+    public void setDescription(String description){ this.description =
+            description;  }
+
+    public void getTShirtSize(TShirtSize size){ this.size = size; }
+
+    public boolean validStart(){
+        return timeEntries.empty() || timeEntries.peek().getStopTime() != null;
+    }
+
+    public boolean validStop(){
+        return timeEntries.peek().getStopTime() == null
+                && !timeEntries.empty();
+    }
+
+    public void upsertTimeEntry(String time, String command){
+        if(command.equals("start")){
+            if(validStart()){
+                timeEntries.push(new TimeEntry(time));
+            }
+        } else if(command.equals("stop")){
+            if(validStop()){
+                timeEntries.push(new TimeEntry(time));
             }
         }
-        return null;
     }
 
-    public boolean doesSizeExist (String size) {
-        List<String> stringList = Arrays.asList("S", "M", "L", "XL");
+}
 
-        if (stringList.contains(size)) {
-            return true;
-        }
-
-        return false;
+class TimeEntry {
+    private final String startTime;
+    private String stopTime;
+    public TimeEntry(String startTime) {
+        this.startTime = startTime;
+        this.stopTime = null;
     }
 
-    public void startTask(String taskName) throws InvalidCommandException {
-        //assume startime correlates to whatever the current time is at runtime
-        // Log the start time of the task
-        Task currentTask = findTaskInList(taskName);
-
-        if (currentTask != null && !currentTask.isTaskStopped()) {
-        throw new InvalidCommandException("Invalid Command: " + taskName + " has not yet been stopped.");
-        }
-
-        //Log time into logger
-        String taskStartTime = Long.toString(System.currentTimeMillis());
-        logger.info(taskName + " started at: " + taskStartTime);
-
-        if(currentTask != null){
-            currentTask.addTimeEntry(new TimeEntry(taskStartTime, "N/A"));
-            return;
-        }
-        
-        tasks.add(new Task(taskName, new TimeEntry(taskStartTime, "N/A")));
-
+    public void setStopTime(String stopTime) {
+        this.stopTime = stopTime;
     }
 
-    public void stopTask(String taskName) throws InvalidCommandException {
-        Task currentTask = findTaskInList(taskName);
-
-        if (currentTask == null || currentTask.isTaskStopped()) {
-        throw new InvalidCommandException("Invalid Command: " + taskName + " is already stopped or does not exist.");
-        }
-        //Log time into logger
-        String taskStopTime = Long.toString(System.currentTimeMillis());
-        logger.info(taskName + " stopped at: " + taskStopTime);
-
-        currentTask.setStopTime(taskStopTime);
-
+    public String getStopTime() {
+        return this.stopTime;
     }
 
-    public void describe(String taskName, String description, String size) throws InvalidCommandException {
-         Task targetTask = findTaskInList(taskName);
-
-        if(targetTask == null){
-            throw new InvalidCommandException("Invalid Command: " + taskName + " does not exist.");
-        }
-
-        targetTask.setDescription(description);
-
-        if(doesSizeExist(size)){
-            size(taskName, size);
-        }
-
-
+    public String getStartTime() {
+        return this.startTime;
     }
 
-    public void size(String taskName, String size) throws InvalidCommandException {
-        Task targetTask = findTaskInList(taskName);
-
-        if(targetTask == null){
-            throw new InvalidCommandException("Invalid Command: " + taskName + " does not exist.");
-        }
-
-        targetTask.setSize(TShirtSize.valueOf(size));
+    public int getDuration() {
+        return 0;
     }
+}
 
-    public void summary(String arg) {
-    }
-
-    public void delete(String taskName) throws InvalidCommandException {
-        Task targetTask = findTaskInList(taskName);
-
-        if(targetTask == null){
-            throw new InvalidCommandException("Invalid Command: " + taskName + " does not exist or is already deleted.");
-        }
-
-        tasks.remove(targetTask);
-
-    }
-
-    public void rename(String oldName, String newName) throws InvalidCommandException {
-         Task targetTask = findTaskInList(oldName);
-
-        if(targetTask == null){
-            throw new InvalidCommandException("Invalid Command: " + oldName + " does not exist.");
-        }
-
-        targetTask.setName(newName);
-        
+class InvalidCommandException extends Exception {
+    public InvalidCommandException(String usage){
+        super("Missing Arguments, Usage: " + usage);
     }
 }
 
@@ -361,75 +432,4 @@ enum TShirtSize {
     M,
     L,
     XL
-}
-
-class Task {
-    private String name;
-    private String description;
-    private TShirtSize size;
-    private List<TimeEntry> timeEntries;
-
-    public boolean isTaskStopped(){
-        TimeEntry currentTimeEntry = timeEntries.get(timeEntries.size() - 1);
-        if(currentTimeEntry.getStopTime() == "N/A"){
-            return false;
-        }
-        return true;
-    }
-
-    public Task(String name, TimeEntry timestamp) {
-        this.name = name;
-        timeEntries.add(timestamp);
-    }
-
-    public String getName(){
-        return new String(name);
-    }
-
-    public void setName(String name){
-        this.name = name;
-    }
-    
-    public void setDescription(String description) {
-         if (this.description == null) {
-            this.description = description;
-        } else {
-            this.description += " " + description;
-        }
-    }
-
-    public void setSize(TShirtSize size) {
-        this.size = size;
-    }
-
-    public void setStopTime(String stopTime){
-        TimeEntry currentTimeEntry = timeEntries.get(timeEntries.size() - 1);
-        currentTimeEntry.setStopTime(stopTime);
-    }
-
-    public void addTimeEntry(TimeEntry timeEntry) {
-        timeEntries.add(timeEntry);
-    }
-
-}
-
-class TimeEntry {
-    private String startTime;
-    private String stopTime;
-    public TimeEntry(String startTime, String stopTime) {
-        this.startTime = startTime;
-        this.stopTime = stopTime;
-    }
-
-     public void setStopTime(String stopTime) {
-        this.stopTime = stopTime;
-    }
-
-    public String getStopTime() {
-        return new String(stopTime);
-    }
-
-    public int getDuration() {
-        return 0;
-    }
 }
