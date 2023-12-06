@@ -1,4 +1,9 @@
+import java.util.Arrays;
 import java.util.List;
+import java.util.logging.FileHandler;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
+
 
 public class TM {
     public static void main(String[] args){
@@ -27,9 +32,10 @@ public class TM {
                     command = new SummaryCommand(taskRepo,
                             argExists(1, args));
                     break;
-                case "size":
+                case "size": // modified this case under the assumption that specified size is mandatory
                     command = new SizeCommand(taskRepo,
-                            argExists(1, args));
+                            argExists(1, args),
+                            argExists(2, args));
                     break;
                 case "delete":
                     command = new DeleteCommand(taskRepo,
@@ -74,6 +80,7 @@ class StartTaskCommand implements Command {
         this.taskRepo = repo;
         this.taskName = name;
     }
+
     @Override
     public void execute() throws InvalidCommandException {
         if (this.taskName != null) {
@@ -144,16 +151,18 @@ class SummaryCommand implements Command {
 class SizeCommand implements Command {
     private final TaskRepository taskRepo;
     private final String taskName;
+    private String size; //modified here as well to be able to pass in size type
 
-    public SizeCommand(TaskRepository repo, String name) {
+    public SizeCommand(TaskRepository repo, String name, String size) {
         this.taskRepo = repo;
         this.taskName = name;
+        this.size = size;
     }
 
     @Override
     public void execute() throws InvalidCommandException {
-        if (this.taskName != null) {
-            taskRepo.size(taskName);
+        if (this.taskName != null && taskRepo.doesSizeExist(size)) { // if invalid size, prompt default exception
+            taskRepo.size(taskName, size);
         } else {
             throw new InvalidCommandException("TM.java size <task  name> " +
                     "{S|M|L|XL}");
@@ -221,30 +230,129 @@ class CommandInvoker {
 class TaskRepository {
     private final String logFilePath;
     private List<Task> tasks;
+    private Logger logger;
 
     public TaskRepository(String filePath) {
         this.logFilePath = filePath;
+
+         // Initialize logger and set up FileHandler
+        try {
+
+            logger = Logger.getLogger(TaskRepository.class.getName());
+            FileHandler fileHandler = new FileHandler(logFilePath, true);
+            SimpleFormatter formatter = new SimpleFormatter();
+            fileHandler.setFormatter(formatter);
+            logger.addHandler(fileHandler);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
-    public void startTask(String taskName) {
+    public Task findTaskInList (String taskName) {
+        for (Task task : tasks) {
+            if (task.getName().equals(taskName)) {
+                return task;
+            }
+        }
+        return null;
     }
 
-    public void stopTask(String taskName) {
+    public boolean doesSizeExist (String size) {
+        List<String> stringList = Arrays.asList("S", "M", "L", "XL");
+
+        if (stringList.contains(size)) {
+            return true;
+        }
+
+        return false;
     }
 
-    public void describe(String taskName, String description, String size) {
+    public void startTask(String taskName) throws InvalidCommandException {
+        //assume startime correlates to whatever the current time is at runtime
+        // Log the start time of the task
+        Task currentTask = findTaskInList(taskName);
+
+        if (currentTask != null && !currentTask.isTaskStopped()) {
+        throw new InvalidCommandException("Invalid Command: " + taskName + " has not yet been stopped.");
+        }
+
+        //Log time into logger
+        String taskStartTime = Long.toString(System.currentTimeMillis());
+        logger.info(taskName + " started at: " + taskStartTime);
+
+        if(currentTask != null){
+            currentTask.addTimeEntry(new TimeEntry(taskStartTime, "N/A"));
+            return;
+        }
+        
+        tasks.add(new Task(taskName, new TimeEntry(taskStartTime, "N/A")));
+
     }
 
-    public void size(String taskName) {
+    public void stopTask(String taskName) throws InvalidCommandException {
+        Task currentTask = findTaskInList(taskName);
+
+        if (currentTask == null || currentTask.isTaskStopped()) {
+        throw new InvalidCommandException("Invalid Command: " + taskName + " is already stopped or does not exist.");
+        }
+        //Log time into logger
+        String taskStopTime = Long.toString(System.currentTimeMillis());
+        logger.info(taskName + " stopped at: " + taskStopTime);
+
+        currentTask.setStopTime(taskStopTime);
+
+    }
+
+    public void describe(String taskName, String description, String size) throws InvalidCommandException {
+         Task targetTask = findTaskInList(taskName);
+
+        if(targetTask == null){
+            throw new InvalidCommandException("Invalid Command: " + taskName + " does not exist.");
+        }
+
+        targetTask.setDescription(description);
+
+        if(doesSizeExist(size)){
+            size(taskName, size);
+        }
+
+
+    }
+
+    public void size(String taskName, String size) throws InvalidCommandException {
+        Task targetTask = findTaskInList(taskName);
+
+        if(targetTask == null){
+            throw new InvalidCommandException("Invalid Command: " + taskName + " does not exist.");
+        }
+
+        targetTask.setSize(TShirtSize.valueOf(size));
     }
 
     public void summary(String arg) {
     }
 
-    public void delete(String taskName) {
+    public void delete(String taskName) throws InvalidCommandException {
+        Task targetTask = findTaskInList(taskName);
+
+        if(targetTask == null){
+            throw new InvalidCommandException("Invalid Command: " + taskName + " does not exist or is already deleted.");
+        }
+
+        tasks.remove(targetTask);
+
     }
 
-    public void rename(String oldName, String newName) {
+    public void rename(String oldName, String newName) throws InvalidCommandException {
+         Task targetTask = findTaskInList(oldName);
+
+        if(targetTask == null){
+            throw new InvalidCommandException("Invalid Command: " + oldName + " does not exist.");
+        }
+
+        targetTask.setName(newName);
+        
     }
 }
 
@@ -260,6 +368,49 @@ class Task {
     private String description;
     private TShirtSize size;
     private List<TimeEntry> timeEntries;
+
+    public boolean isTaskStopped(){
+        TimeEntry currentTimeEntry = timeEntries.get(timeEntries.size() - 1);
+        if(currentTimeEntry.getStopTime() == "N/A"){
+            return false;
+        }
+        return true;
+    }
+
+    public Task(String name, TimeEntry timestamp) {
+        this.name = name;
+        timeEntries.add(timestamp);
+    }
+
+    public String getName(){
+        return new String(name);
+    }
+
+    public void setName(String name){
+        this.name = name;
+    }
+    
+    public void setDescription(String description) {
+         if (this.description == null) {
+            this.description = description;
+        } else {
+            this.description += " " + description;
+        }
+    }
+
+    public void setSize(TShirtSize size) {
+        this.size = size;
+    }
+
+    public void setStopTime(String stopTime){
+        TimeEntry currentTimeEntry = timeEntries.get(timeEntries.size() - 1);
+        currentTimeEntry.setStopTime(stopTime);
+    }
+
+    public void addTimeEntry(TimeEntry timeEntry) {
+        timeEntries.add(timeEntry);
+    }
+
 }
 
 class TimeEntry {
@@ -269,6 +420,15 @@ class TimeEntry {
         this.startTime = startTime;
         this.stopTime = stopTime;
     }
+
+     public void setStopTime(String stopTime) {
+        this.stopTime = stopTime;
+    }
+
+    public String getStopTime() {
+        return new String(stopTime);
+    }
+
     public int getDuration() {
         return 0;
     }
