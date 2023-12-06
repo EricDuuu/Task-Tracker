@@ -310,7 +310,7 @@ class LogParser {
                 && (command.equals("start") || command.equals("stop"))){
             task.upsertTimeEntry(timestamp, command);
             return null;
-        } else if (task != null && command.equals("size"){
+        } else if (task != null && command.equals("size")){
 
         }
 
