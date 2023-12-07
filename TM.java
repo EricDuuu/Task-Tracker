@@ -1,8 +1,11 @@
+import java.util.ArrayList;
 import java.util.List;
 import java.io.*;
 import java.time.Instant;
-import java.util.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Stack;
+import java.util.stream.Collectors;
 
 public class TM {
     public static void main(String[] args){
@@ -223,8 +226,8 @@ class TaskRepository {
     private final Logger logger;
 
     public TaskRepository(String filePath) {
-        LogParser logParser = new LogParser();
         this.logger = new Logger(filePath);
+        LogParser logParser = new LogParser();
         this.tasks = logParser.parseLogFile(filePath);
     }
 
@@ -237,31 +240,25 @@ class TaskRepository {
 
     // these shouldn't modify task at all
     public void startTask(String taskName) {
-        Task task = getLatestTask(taskName);
-        if(task.validStart()) {
-            logger.logAction(taskName, "start", "");
-        }
+        logger.logAction(taskName, "start", null, null);
     }
 
     public void stopTask(String taskName) {
-        Task task = getLatestTask(taskName);
-        if (task.validStop()) {
-            logger.logAction(taskName, "stop", "");
-        }
+            logger.logAction(taskName, "stop", null, null);
     }
 
     public void describe(String taskName, String description, String size) {
         Task task = getLatestTask(taskName);
         if (task != null) {
             logger.logAction(taskName, "describe",
-                    description + (size != null ? "," + size : ""));
+                    description, size);
         }
     }
 
     public void size(String taskName, String size) {
         Task task = getLatestTask(taskName);
         if (task != null) {
-            logger.logAction(taskName, "size", size);
+            logger.logAction(taskName, "size", null, size);
         }
     }
 
@@ -281,11 +278,58 @@ class TaskRepository {
     }
 }
 
+class Logger {
+    private final String logFilePath;
+    public Logger(String logFilePath) {
+        this.logFilePath = logFilePath;
+        createLogIfNotExist();
+    }
+
+    private void createLogIfNotExist() {
+        File file = new File(this.logFilePath);
+        if (!file.exists()) {
+            try {
+                file.createNewFile();
+            } catch (IOException e) {
+                System.err.println("Error creating log file: "
+                        + e.getMessage());
+            }
+        }
+    }
+
+    public void logAction(String taskName, String command,
+                          String description, String size) {
+        String logEntry = String.format("%s,%s,%s,%s,%s",
+                Instant.now().toString(), taskName, command, description, size);
+
+        try (FileWriter fw = new FileWriter(logFilePath, true);
+             BufferedWriter writer = new BufferedWriter(fw)) {
+            writer.append(logEntry);
+            writer.newLine();
+        } catch (IOException e) {
+            System.err.println("Error writing to log file: " + e.getMessage());
+        }
+    }
+}
+
 class LogParser {
-    // TODO
     private List<Task> tasks;
+
+    public LogParser() {
+        this.tasks = new ArrayList<>();
+    }
     public List<Task> parseLogFile(String logFilePath) {
-        List<Task> tasks = new ArrayList<>();
+        try {
+            List<String> logLines = Files.readAllLines(Paths.get(logFilePath));
+            for (String line : logLines) {
+                Task task = parseLogLine(line);
+                if (task != null) {
+                    tasks.add(task);
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error reading the log file: " + e.getMessage());
+        }
         return tasks;
     }
 
@@ -302,62 +346,44 @@ class LogParser {
         String timestamp = parts[0];
         String taskName = parts[1];
         String command = parts[2];
-
-        String additionalInfo = (parts.length > 3) ? parts[3] : null;
+        String description = (parts.length > 3) ? parts[3] : null;
+        String size = (parts.length > 4) ? parts[4] : null;
 
         Task task = getLatestTask(taskName);
-        if (task != null
-                && (command.equals("start") || command.equals("stop"))){
-            task.upsertTimeEntry(timestamp, command);
-            return null;
-        } else if (task != null && command.equals("size")){
-
+        // Initialize new task if task is null command is start
+        if (task == null && command.equals("start")) {
+            return new Task(taskName, timestamp);
         }
 
-        return new Task(taskName, additionalInfo, null);
-    }
-}
-
-class Logger {
-    private final String logFilePath;
-
-    public Logger(String logFilePath) {
-        this.logFilePath = logFilePath;
-    }
-
-
-
-    public void logAction(String taskName, String command,
-                          String additionalInfo) {
-        String logEntry = String.format("%s,%s,%s,%s",
-                Instant.now().toString(), taskName, command, additionalInfo);
-
-        try (FileWriter fw = new FileWriter(logFilePath, true);
-             BufferedWriter writer = new BufferedWriter(fw)) {
-            writer.append(logEntry);
-            writer.newLine();
-        } catch (IOException e) {
-            System.err.println("Error writing to log file: " + e.getMessage());
+        if (task!= null) {
+            switch (command) {
+                case "start", "stop" -> {
+                    task.upsertTimeEntry(timestamp, command);
+                }
+                case "describe" -> {
+                    task.setDescription(description);
+                }
+                case "size" -> {
+                    task.setTShirtSize(size);
+                }
+            }
         }
+
+        return null;
     }
 }
-
 
 class Task {
     private final String name;
     private String description;
-    private TShirtSize size;
+    private String size;
 
-    private Stack<TimeEntry> timeEntries;
+    public Stack<TimeEntry> timeEntries;
 
-    public Task(String name) {
-        this(name, "", null);
-    }
-    public Task(String name, String description, TShirtSize size) {
+    public Task(String name, String timestamp) {
         this.name = name;
-        this.description = description;
-        this.size = size;
         this.timeEntries = new Stack<>();
+        this.timeEntries.push(new TimeEntry(timestamp));
     }
 
     public String getName() {
@@ -366,31 +392,18 @@ class Task {
 
     public String getDescription(){ return description; }
 
-    public TShirtSize getTShirtSize(){ return size; }
+    public String getTShirtSize(){ return size; }
 
     public void setDescription(String description){ this.description =
             description;  }
 
-    public void getTShirtSize(TShirtSize size){ this.size = size; }
-
-    public boolean validStart(){
-        return timeEntries.empty() || timeEntries.peek().getStopTime() != null;
-    }
-
-    public boolean validStop(){
-        return timeEntries.peek().getStopTime() == null
-                && !timeEntries.empty();
-    }
+    public void setTShirtSize(String size){ this.size = size; }
 
     public void upsertTimeEntry(String time, String command){
         if(command.equals("start")){
-            if(validStart()){
-                timeEntries.push(new TimeEntry(time));
-            }
+            timeEntries.push(new TimeEntry(time));
         } else if(command.equals("stop")){
-            if(validStop()){
-                timeEntries.push(new TimeEntry(time));
-            }
+            timeEntries.push(new TimeEntry(time));
         }
     }
 
