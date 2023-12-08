@@ -6,9 +6,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.time.Instant;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class TM {
@@ -28,7 +30,8 @@ public class TM {
 }
 
 interface TaskLogger {
-    void logAction(String taskName, String command, String description, String size);
+    void logAction(String taskName, String command,
+                   String description, String size);
     void renameTasks(String oldName, String newName);
     void deleteTasks(String taskName);
 }
@@ -39,29 +42,44 @@ interface TaskLogParser {
 
 class SummaryInfo {
     private final Map<String, Task> taskMap;
-    public SummaryInfo(Map<String, Task> taskMap) {
-        this.taskMap = taskMap;
+    public SummaryInfo(Map<String, Task> taskMap, Predicate<Task> filter) {
+        this.taskMap = taskMap.entrySet().stream()
+                .filter(entry -> filter.test(entry.getValue()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
-    public List<Duration> getTaskDurations() {
+    public Map<String, Task> getTaskMap(){
+        return Collections.unmodifiableMap(taskMap);
+    }
+
+    private List<Duration> getTaskDurations() {
         return taskMap.values().stream()
                 .map(Task::getTotalDuration)
                 .collect(Collectors.toList());
     }
 
-    public Duration minTimeSpent() {
+    public Task minDurationTask() {
+        return taskMap.entrySet().stream()
+                .min(Comparator.comparingLong(e -> e.getValue().
+                        getTotalDuration().toMillis()))
+                .map(Map.Entry::getValue)
+                .orElse(null);
+    }
+
+    public Task maxDurationTask() {
+        return taskMap.entrySet().stream()
+                .max(Comparator.comparingLong(e -> e.getValue().
+                        getTotalDuration().toMillis()))
+                .map(Map.Entry::getValue)
+                .orElse(null);
+    }
+    public Duration totalOverallTimeSpent() {
         return getTaskDurations().stream()
-                .min(Duration::compareTo)
+                .reduce(Duration::plus)
                 .orElse(Duration.ZERO);
     }
 
-    public Duration maxTimeSpent() {
-        return getTaskDurations().stream()
-                .max(Duration::compareTo)
-                .orElse(Duration.ZERO);
-    }
-
-    public Duration avgTimeSpent() {
+    public Duration avgTotalTimeSpent() {
         List<Duration> durations = getTaskDurations();
         return durations.stream()
                 .reduce(Duration::plus)
@@ -75,28 +93,68 @@ interface SummaryStrategy {
 }
 
 class SummaryByName implements SummaryStrategy {
-    private final SummaryInfo summary;
+    Task task;
 
-    public SummaryByName(SummaryInfo summary, String arg) {
-        this.summary = summary;
+    public SummaryByName(Task task) {
+        this.task = task;
     }
 
     @Override
     public void generateSummary() {
+        final String taskFormat = "%-16s | %-16s | %-16s | %-16s " +
+                "| %-16s | %s%n";
 
+        System.out.format(taskFormat, "Task Name", "Total", "Mean", "Min",
+                "Max", "Description");
+        System.out.format(taskFormat, task.getName(),
+                task.getTotalDuration(), task.getAvgTimeEntry(),
+                task.getMinTimeEntry(), task.getMaxTimeEntry(),
+                task.getDescription());
     }
 }
 
 class SummaryBySize implements SummaryStrategy {
     private final SummaryInfo summary;
+    private final String size;
 
-    public SummaryBySize(SummaryInfo summary, String arg) {
+    public SummaryBySize(SummaryInfo summary, String size) {
         this.summary = summary;
+        this.size = size;
     }
 
     @Override
     public void generateSummary() {
+        final String totalFormat = "%-10s | %-10s | %-16s | %s%n";
+        final String taskFormat = "%-16s | %-16s | %-16s | %-16s " +
+                "| %-16s | %s%n";
 
+        Map<String,Task> taskMap = summary.getTaskMap();
+        System.out.println("Tasks with size: " + size);
+        System.out.format(taskFormat, "Task Name", "Total", "Mean", "Min",
+                "Max", "Description");
+
+        for(Task task : taskMap.values()){
+            System.out.format(taskFormat, task.getName(),
+                    task.getTotalDuration(), task.getAvgTimeEntry(),
+                    task.getMinTimeEntry(), task.getMaxTimeEntry(),
+                    task.getDescription());
+        }
+
+        Task min = summary.minDurationTask();
+        Task max = summary.maxDurationTask();
+
+        String minName = min == null? "None" : min.getName();
+        String maxName = max == null? "None" : max.getName();
+        Duration minDuration = min == null? Duration.ZERO :
+                min.getTotalDuration();
+        Duration maxDuration = max == null? Duration.ZERO :
+                max.getTotalDuration();
+
+        System.out.println("\nTotal times of all tasks with size: " + size);
+        System.out.format(totalFormat, "Total", "Mean", "Min: " + minName,
+                "Max: " + maxName);
+        System.out.format(totalFormat, summary.totalOverallTimeSpent(),
+                summary.avgTotalTimeSpent(), minDuration, maxDuration);
     }
 }
 
@@ -109,7 +167,37 @@ class SummaryForAll implements SummaryStrategy {
 
     @Override
     public void generateSummary() {
-        System.out.println("hi");
+        final String totalFormat = "%-10s | %-10s | %-16s | %s%n";
+        final String taskFormat = "%-16s | %-16s | %-16s | %-16s " +
+                "| %-16s | %-4s | %s%n";
+
+        Map<String,Task> taskMap = summary.getTaskMap();
+        System.out.println("All Tasks:");
+        System.out.format(taskFormat, "Task Name", "Total", "Mean", "Min",
+                "Max", "Size", "Description");
+
+        for(Task task : taskMap.values()){
+            System.out.format(taskFormat, task.getName(),
+                    task.getTotalDuration(), task.getAvgTimeEntry(),
+                    task.getMinTimeEntry(), task.getMaxTimeEntry(),
+                    task.getSize(), task.getDescription());
+        }
+
+        Task min = summary.minDurationTask();
+        Task max = summary.maxDurationTask();
+
+        String minName = min == null? "None" : min.getName();
+        String maxName = max == null? "None" : max.getName();
+        Duration minDuration = min == null? Duration.ZERO :
+                min.getTotalDuration();
+        Duration maxDuration = max == null? Duration.ZERO :
+                max.getTotalDuration();
+
+        System.out.println("\nTotal times of all tasks: ");
+        System.out.format(totalFormat, "Total", "Mean", "Min: " + minName,
+                "Max: " + maxName);
+        System.out.format(totalFormat, summary.totalOverallTimeSpent(),
+                summary.avgTotalTimeSpent(), minDuration, maxDuration);
     }
 }
 
@@ -146,8 +234,16 @@ class CommandParser {
                     throw new MissingArgumentException("describe " +
                             "<task name> <description> [{S|M|L|XL}]");
                 }
-                taskExecutor.describe(args[1], args[2], args.length > 3 ?
-                        args[3] : null);
+                String size = null;
+                if (args[args.length - 1].toUpperCase()
+                        .matches("S|M|L|XL")) {
+                    size = args[args.length - 1];
+                }
+                String description = String.join(" ",
+                        Arrays.copyOfRange(args, 2, size != null ?
+                                args.length - 1 : args.length));
+
+                taskExecutor.describe(args[1], description, size);
                 break;
 
             case "size":
@@ -243,20 +339,22 @@ class TaskExecutor {
     public void summary(String arg)
             throws IllegalCommandException {
         SummaryStrategy strategy;
-        SummaryInfo summary = new SummaryInfo(taskMap);
         if (arg == null) {
-            strategy = new SummaryForAll(summary);
+            strategy = new SummaryForAll(new SummaryInfo(taskMap,
+                    task -> true));
         } else if (isValidSize(arg)) {
-            strategy = new SummaryBySize(summary, arg);
+            strategy = new SummaryBySize(new SummaryInfo(taskMap,
+                    task -> task.getSize() != null &&
+                            task.getSize().equals(arg.toUpperCase()))
+                    , arg.toUpperCase());
         } else {
             Task task = taskMap.get(arg);
             if(task == null){
                 throw new IllegalCommandException(arg,
                         "does not exist");
             }
-            strategy = new SummaryByName(summary, arg);
+            strategy = new SummaryByName(taskMap.get(arg));
         }
-
         strategy.generateSummary();
     }
 
@@ -411,12 +509,13 @@ class LogParser implements TaskLogParser {
             return false;
         }
 
-        Instant parsedTime = Instant.parse(time);
+        Instant parsedTime = Instant.parse(time).
+                truncatedTo(ChronoUnit.SECONDS).plusSeconds(1);
 
         // Case: Start a new task
         Task task = taskMap.get(name);
         if(command.equals("start") && task == null){
-            taskMap.put(name, new Task(parsedTime));
+            taskMap.put(name, new Task(parsedTime, name));
             return true;
         }
 
@@ -453,7 +552,7 @@ class LogParser implements TaskLogParser {
                 break;
             case "describe":
                 taskMap.get(name).setDescription(desc);
-                if(!size.equals("null")){
+                if(!size.equals("NULL")){
                     taskMap.get(name).setSize(size);
                 }
                 break;
@@ -494,14 +593,8 @@ class LogParser implements TaskLogParser {
             return false;
         }
 
-        // TShirtSize is optional
-        if (command.equals("describe") && (size.equals(
-                "NULL")
-                || size.matches("S|M|L|XL"))){
-            return false;
-        }
-
-        if (command.equals("describe") && desc.equals("null")){
+        if (command.equals("describe") && desc.equals("null")
+                && !size.equals("NULL") && !size.matches("S|M|L|XL")){
             return false;
         }
 
@@ -516,13 +609,19 @@ class LogParser implements TaskLogParser {
 }
 
 class Task {
+    private final String name;
     private String description;
     private String size;
     private final Stack<TimeEntry> timeEntries;
 
-    public Task(Instant startTime){
+    public Task(Instant startTime, String name){
+        this.name = name;
         this.timeEntries = new Stack<>();
         this.timeEntries.push(new TimeEntry(startTime));
+    }
+
+    public String getName(){
+        return this.name;
     }
 
     public boolean lastEntryStopped(){
@@ -555,6 +654,28 @@ class Task {
                 .map(TimeEntry::getDuration)
                 .reduce(Duration::plus)
                 .orElse(Duration.ZERO);
+    }
+
+    public Duration getMinTimeEntry() {
+        return timeEntries.stream()
+                .filter(TimeEntry::hasStop)
+                .map(TimeEntry::getDuration)
+                .min(Duration::compareTo)
+                .orElse(Duration.ZERO);
+    }
+
+    public Duration getMaxTimeEntry() {
+        return timeEntries.stream()
+                .filter(TimeEntry::hasStop)
+                .map(TimeEntry::getDuration)
+                .max(Duration::compareTo)
+                .orElse(Duration.ZERO);
+    }
+
+    public Duration getAvgTimeEntry() {
+        int entriesCount = lastEntryStopped() ?
+                timeEntries.size() : timeEntries.size() - 1;
+        return getTotalDuration().dividedBy(entriesCount);
     }
 
     public void setSize(String size) {
