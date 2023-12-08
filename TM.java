@@ -76,7 +76,6 @@ class SummaryInfo {
         Duration maxDuration = max == null? Duration.ZERO :
                 max.getTotalDuration();
 
-        System.out.println("\nTotal times of all tasks: ");
         System.out.format(totalFormat, "Total", "Mean", "Min: " + minName,
                 "Max: " + maxName);
         System.out.format(totalFormat, totalOverallTimeSpent(),
