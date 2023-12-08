@@ -13,14 +13,103 @@ import java.util.stream.Collectors;
 
 public class TM {
     public static void main(String[] args){
-        TaskExecutor taskExecutor = new
-                TaskExecutor("task-manager.log");
+        final String logFilePath = "task-manager.log";
+        TaskLogger logger = new Logger(logFilePath);
+        TaskLogParser logParser = new LogParser(logFilePath);
+        TaskExecutor taskExecutor = new TaskExecutor(logger, logParser);
+
         CommandParser commandParser = new CommandParser(taskExecutor);
         try {
             commandParser.parseThenExecute(args);
         }   catch (Exception e) {
             System.err.println(e.getMessage());
         }
+    }
+}
+
+interface TaskLogger {
+    void logAction(String taskName, String command, String description, String size);
+    void renameTasks(String oldName, String newName);
+    void deleteTasks(String taskName);
+}
+
+interface TaskLogParser {
+    Map<String, Task> parseLogFile();
+}
+
+class SummaryInfo {
+    private final Map<String, Task> taskMap;
+    public SummaryInfo(Map<String, Task> taskMap) {
+        this.taskMap = taskMap;
+    }
+
+    public List<Duration> getTaskDurations() {
+        return taskMap.values().stream()
+                .map(Task::getTotalDuration)
+                .collect(Collectors.toList());
+    }
+
+    public Duration minTimeSpent() {
+        return getTaskDurations().stream()
+                .min(Duration::compareTo)
+                .orElse(Duration.ZERO);
+    }
+
+    public Duration maxTimeSpent() {
+        return getTaskDurations().stream()
+                .max(Duration::compareTo)
+                .orElse(Duration.ZERO);
+    }
+
+    public Duration avgTimeSpent() {
+        List<Duration> durations = getTaskDurations();
+        return durations.stream()
+                .reduce(Duration::plus)
+                .map(total -> total.dividedBy(durations.size()))
+                .orElse(Duration.ZERO);
+    }
+}
+
+interface SummaryStrategy {
+    void generateSummary();
+}
+
+class SummaryByName implements SummaryStrategy {
+    private final SummaryInfo summary;
+
+    public SummaryByName(SummaryInfo summary, String arg) {
+        this.summary = summary;
+    }
+
+    @Override
+    public void generateSummary() {
+
+    }
+}
+
+class SummaryBySize implements SummaryStrategy {
+    private final SummaryInfo summary;
+
+    public SummaryBySize(SummaryInfo summary, String arg) {
+        this.summary = summary;
+    }
+
+    @Override
+    public void generateSummary() {
+
+    }
+}
+
+class SummaryForAll implements SummaryStrategy {
+    private final SummaryInfo summary;
+
+    public SummaryForAll(SummaryInfo summary) {
+        this.summary = summary;
+    }
+
+    @Override
+    public void generateSummary() {
+        System.out.println("hi");
     }
 }
 
@@ -97,14 +186,13 @@ class CommandParser {
 
 class TaskExecutor {
     private final Map<String, Task> taskMap;
-    private final Logger logger;
-    public TaskExecutor(String logFilePath) {
-        this.logger = new Logger(logFilePath);
-        LogParser logParser = new LogParser();
-        this.taskMap = logParser.parseLogFile(logFilePath);
+    private final TaskLogger logger;
+    public TaskExecutor(TaskLogger logger, TaskLogParser logParser) {
+        this.logger = logger;
+        this.taskMap = logParser.parseLogFile();
     }
 
-    private boolean validSize(String size) {
+    private boolean isValidSize(String size) {
         return size.toUpperCase().matches("S|M|L|XL");
     }
 
@@ -132,7 +220,7 @@ class TaskExecutor {
         if(task == null){
             throw new IllegalCommandException(taskName,
                     "does not exist");
-        } else if (size != null && !validSize(size)){
+        } else if (size != null && !isValidSize(size)){
             throw new IllegalCommandException(taskName,
                     "invalid size");
         }
@@ -145,7 +233,7 @@ class TaskExecutor {
         if(task == null){
             throw new IllegalCommandException(taskName,
                     "does not exist");
-        } else if (!validSize(size)){
+        } else if (!isValidSize(size)){
             throw new IllegalCommandException(taskName,
                     "invalid size");
         }
@@ -154,7 +242,22 @@ class TaskExecutor {
 
     public void summary(String arg)
             throws IllegalCommandException {
+        SummaryStrategy strategy;
+        SummaryInfo summary = new SummaryInfo(taskMap);
+        if (arg == null) {
+            strategy = new SummaryForAll(summary);
+        } else if (isValidSize(arg)) {
+            strategy = new SummaryBySize(summary, arg);
+        } else {
+            Task task = taskMap.get(arg);
+            if(task == null){
+                throw new IllegalCommandException(arg,
+                        "does not exist");
+            }
+            strategy = new SummaryByName(summary, arg);
+        }
 
+        strategy.generateSummary();
     }
 
     public void delete(String taskName)
@@ -182,7 +285,7 @@ class TaskExecutor {
     }
 }
 
-class Logger {
+class Logger implements TaskLogger {
     private final String logFilePath;
     public Logger(String logFilePath) {
         this.logFilePath = logFilePath;
@@ -262,14 +365,15 @@ class Logger {
     }
 }
 
-class LogParser {
+class LogParser implements TaskLogParser {
     private final Map<String, Task> taskMap;
-
-    public LogParser() {
+    private final String logFilePath;
+    public LogParser(String logFilePath) {
         this.taskMap = new HashMap<>();
+        this.logFilePath = logFilePath;
     }
-
-    public Map<String, Task> parseLogFile(String logFilePath) {
+    
+    public Map<String, Task> parseLogFile() {
         try {
             Path path = Paths.get(logFilePath);
             List<String> logLines = Files.readAllLines(path);
@@ -310,14 +414,15 @@ class LogParser {
         Instant parsedTime = Instant.parse(time);
 
         // Case: Start a new task
-        if(command.equals("start") && !taskMap.containsKey(name)){
+        Task task = taskMap.get(name);
+        if(command.equals("start") && task == null){
             taskMap.put(name, new Task(parsedTime));
             return true;
         }
 
         // Case: commands but never started
         if(command.matches("stop|describe|size")
-                && !taskMap.containsKey(name)){
+                && task == null){
             printError(lineNum, name, " never started");
         }
 
@@ -371,7 +476,6 @@ class LogParser {
 
     private boolean validArgs(String time, String name, String desc,
                               String command, String size){
-
         // Valid Time
         try {
             Instant.parse(time);
