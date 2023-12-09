@@ -1,11 +1,49 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
   <component name="ChangeListManager">
-    <list default="true" id="476ef662-d981-479b-b067-481b1f66dfbc" name="Changes" comment="" />
+    <list default="true" id="476ef662-d981-479b-b067-481b1f66dfbc" name="Changes" comment="Finished, testing and maybe refactoring to do">
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Command.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/CommandInvoker.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DeleteCommand.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/DescribeTaskCommand.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Final Project 160.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/InvalidCommandException.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/RenameCommand.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/SizeCommand.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/StartTaskCommand.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/StopTaskCommand.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/SummaryCommand.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/TM.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/TShirtSize.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Task.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/TaskRepository.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/TimeEntry.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/TM/.idea/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/out/production/TM/.idea/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/TM/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/out/production/TM/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/TM/Command.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/TM/DeleteCommand.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/TM/DescribeTaskCommand.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/TM/SizeCommand.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/TM/StartTaskCommand.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/TM/StopTaskCommand.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/TM/SummaryCommand.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/TM/TM.class" beforeDir="false" afterPath="$PROJECT_DIR$/out/production/TM/TM.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/TM/TShirtSize.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/TM/TaskRepository.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/taskdata.log" beforeDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="CodyActiveAccount">
+    <option name="activeAccountId" value="abc23052-dec7-4d31-9899-376cf266b170" />
   </component>
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
@@ -14,20 +52,42 @@
       </list>
     </option>
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 6
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "EricDuuu"
+  }
 }]]></component>
+  <component name="GithubPullRequestsUISettings">
+    <option name="selectedUrlAndAccountId">
+      <UrlAndAccount>
+        <option name="accountId" value="9138e65f-1fae-4689-b2b7-dc4425851960" />
+        <option name="url" value="https://github.com/EricDuuu/160-Final-Project" />
+      </UrlAndAccount>
+    </option>
+  </component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="CurrentFile" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 6
+}</component>
   <component name="ProjectId" id="2Z6nvlOXwJjww5VOxUtRl02m4L5" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.CodyProjectSettingsMigration&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;
   }
-}]]></component>
+}</component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
@@ -37,6 +97,64 @@
       <option name="presentableId" value="Default" />
       <updated>1701751631892</updated>
     </task>
+    <task id="LOCAL-00001" summary="Summary is pain">
+      <option name="closed" value="true" />
+      <created>1702014250517</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1702014250517</updated>
+    </task>
+    <task id="LOCAL-00002" summary="Finished, testing and maybe refactoring to do">
+      <option name="closed" value="true" />
+      <created>1702031690802</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1702031690802</updated>
+    </task>
+    <task id="LOCAL-00003" summary="Finished, testing and maybe refactoring to do">
+      <option name="closed" value="true" />
+      <created>1702057809123</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1702057809123</updated>
+    </task>
+    <task id="LOCAL-00004" summary="Finished, testing and maybe refactoring to do">
+      <option name="closed" value="true" />
+      <created>1702057863170</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1702057863170</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Finished, testing and maybe refactoring to do">
+      <option name="closed" value="true" />
+      <created>1702095075909</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1702095075910</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Refactored, Removed Command Pattern because it was redundant and added unnecessary complexity" />
+    <MESSAGE value="Summary is pain" />
+    <MESSAGE value="Finished, testing and maybe refactoring to do" />
+    <option name="LAST_COMMIT_MESSAGE" value="Finished, testing and maybe refactoring to do" />
   </component>
 </project>
