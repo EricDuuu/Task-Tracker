@@ -1,13 +1,9 @@
 # Default ignored files
 /shelf/
 /workspace.xml
-# Ignore everything
-*
+/.idea
+/out
 
-# But not these files...
 !.gitignore
 !TM.java
-# etc...
 
-# ...even if they are in subdirectories
-!*/
