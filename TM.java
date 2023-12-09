@@ -52,20 +52,21 @@ class SummaryInfo {
 
     public void printTaskTimes() {
         final String taskFormat = "%-16s | %-10s | %-10s | %-10s " +
-                "| %-10s | %-4s | %s%n";
+                "| %-10s | %-4s | %-8s | %s%n";
         System.out.format(taskFormat, "Task Name", "Total", "Mean", "Min",
-                "Max", "Size", "Description");
+                "Max", "Size", "Sessions", "Description");
 
         for(Task task : taskMap.values()){
             System.out.format(taskFormat, task.getName(),
                     task.getTotalDuration(), task.getAvgTimeEntry(),
                     task.getMinTimeEntry(), task.getMaxTimeEntry(),
-                    task.getSize(), task.getDescription());
+                    task.getSize(), task.getSessions(), task.getDescription());
         }
     }
 
     public void printTotalTaskTimes() {
-        final String totalFormat = "%-10s | %-10s | %-10s | %s%n";
+        final String totalFormat = "%-10s | %-10s | %-10s | %-10s | %-14s | " +
+                "%s %n";
         Task min = minDurationTask();
         Task max = maxDurationTask();
 
@@ -77,9 +78,10 @@ class SummaryInfo {
                 max.getTotalDuration();
 
         System.out.format(totalFormat, "Total", "Mean", "Min: " + minName,
-                "Max: " + maxName);
+                "Max: " + maxName, "Total Sessions", "Mean Sessions");
         System.out.format(totalFormat, totalOverallTimeSpent(),
-                avgTotalTimeSpent(), minDuration, maxDuration);
+                avgTotalTimeSpent(), minDuration, maxDuration,
+                totalOverallSessions(), avgTotalTimeSessions());
     }
 
     private List<Duration> getTaskDurations() {
@@ -109,6 +111,26 @@ class SummaryInfo {
                 .orElse(Duration.ZERO);
     }
 
+    private List<Integer> getTaskSessions() {
+        return taskMap.values().stream()
+                .map(Task::getSessions)
+                .collect(Collectors.toList());
+    }
+
+    private int totalOverallSessions() {
+        return getTaskSessions().stream()
+                .reduce(Integer::sum)
+                .orElse(0);
+    }
+
+    private int avgTotalTimeSessions() {
+        List<Integer> sessions = getTaskSessions();
+        return sessions.stream()
+                .reduce(Integer::sum)
+                .map(total -> total/sessions.size())
+                .orElse(0);
+    }
+
     private Duration avgTotalTimeSpent() {
         List<Duration> durations = getTaskDurations();
         return durations.stream()
@@ -132,15 +154,15 @@ class SummaryByName implements SummaryStrategy {
 
     @Override
     public void generateSummary() {
-        final String taskFormat = "%-16s | %-16s | %-16s | %-16s " +
-                "| %-16s | %s%n";
+        final String taskFormat = "%-10s | %-10s | %-10s | %-10s " +
+                "| %-10s | %-4s | %-8s | %s%n";
 
         System.out.format(taskFormat, "Task Name", "Total", "Mean", "Min",
-                "Max", "Description");
+                "Max", "Size", "Sessions", "Description");
         System.out.format(taskFormat, task.getName(),
                 task.getTotalDuration(), task.getAvgTimeEntry(),
-                task.getMinTimeEntry(), task.getMaxTimeEntry(),
-                task.getDescription());
+                task.getMinTimeEntry(), task.getMaxTimeEntry(), task.getSize(),
+                task.getSessions(), task.getDescription());
     }
 }
 
@@ -608,6 +630,10 @@ class Task {
 
     public boolean isNegativeDuration(Instant stop){
         return timeEntries.peek().isNegativeDuration(stop);
+    }
+
+    public int getSessions(){
+        return timeEntries.size();
     }
 
     public void upsertTimeEntry(Instant time, String command) {
