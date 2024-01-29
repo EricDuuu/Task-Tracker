@@ -7,6 +7,7 @@ Command List:
 - java TM.java describe <task name> <description> [{S|M|L|XL}]
 - java TM.java size <task name> {S|M|L|XL}
 - java TM.java rename <old task name> <new task name>
+- java TM.java summary [task name] [{S|M|L|XL}]
 - java TM.java delete <task name>
 
 
